@@ -1,7 +1,7 @@
-name: Part 2 Image Search — Browser Verification
+name: Image Search — Browser Verification (Parts 2 and 3)
 on:
   push:
-    branches: [part-2-fetch-render]
+    branches: [part-2-fetch-render, part-3-polish-deploy]
   pull_request:
     branches: [main]
 permissions:
@@ -32,6 +32,10 @@ jobs:
         run: |
           export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
           node scripts/browser-test.mjs
+      - name: Test Part 3 loading, empty and error states
+        run: |
+          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
+          node scripts/states-test.mjs
       - name: Check live Wikimedia API is reachable (non-blocking)
         continue-on-error: true
         run: |
@@ -40,6 +44,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: grainframe-part2-browser-evidence
+          name: grainframe-browser-evidence
           path: evidence/
           retention-days: 30
