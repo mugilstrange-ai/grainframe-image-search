@@ -1,0 +1,45 @@
+name: Part 2 Image Search — Browser Verification
+on:
+  push:
+    branches: [part-2-fetch-render]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check required search implementation and syntax
+        run: |
+          node --check script.js
+          node scripts/check-requirements.mjs
+      - name: Start static app locally
+        run: |
+          python3 -m http.server 8000 > /tmp/grainframe-server.log 2>&1 &
+          for n in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8000/index.html >/dev/null && break
+            sleep 1
+          done
+      - name: Install browser testing package
+        run: npm install --no-save --no-package-lock --no-audit --no-fund playwright-core@1.56.1
+      - name: Test real browser UI with deterministic Wikimedia responses
+        run: |
+          export CHROME_PATH="$(command -v google-chrome || command -v chromium)"
+          node scripts/browser-test.mjs
+      - name: Check live Wikimedia API is reachable (non-blocking)
+        continue-on-error: true
+        run: |
+          curl --retry 2 --retry-delay 3 --fail --silent --show-error --user-agent 'GrainframeCourseProject/1.0 (educational)'             'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrlimit=2&gsrsearch=cats&prop=imageinfo&iiprop=url%7Cmime&iiurlwidth=520&format=json&origin=*'             -o /tmp/grainframe-live-api.json
+          python3 -c 'import json; j=json.load(open("/tmp/grainframe-live-api.json")); assert j.get("query",{}).get("pages"); print("Live Wikimedia API returned image search results")'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grainframe-part2-browser-evidence
+          path: evidence/
+          retention-days: 30
